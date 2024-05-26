@@ -1,0 +1,4 @@
+APP/__pycache__/
+APP/migrations/
+DjangoProject/__pycache__/
+postgres-data/

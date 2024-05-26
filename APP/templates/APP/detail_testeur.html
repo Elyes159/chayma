@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphiques et Statistiques</title>
+    <style>
+        /* Style du conteneur du tableau */
+        #table-container {
+            position: fixed; /* Fixe la position de l'élément */
+            top: 100px; /* À 20 pixels du haut de la fenêtre */
+            right: 50px; /* À 20 pixels du bord droit de la fenêtre */
+        }
+
+        /* Style du tableau */
+        #table-container table {
+            width: 100%; /* Largeur du tableau */
+            border-collapse: collapse; /* Fusionner les bordures des cellules */
+            border: 2px solid #ddd; /* Bordure du tableau */
+            font-family: Arial, sans-serif; /* Police du texte */
+            border-radius: 8px; /* Coins arrondis */
+            overflow: hidden; /* Masquer le contenu débordant */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Ombre légère */
+        }
+
+        /* Style des cellules de titre */
+        #table-container th {
+            background-color: #f2f2f2; /* Couleur de fond */
+            border: 1px solid #ddd; /* Bordure de la cellule */
+            padding: 12px; /* Espacement interne */
+            text-align: left; /* Alignement du texte */
+            font-weight: bold; /* Texte en gras */
+        }
+
+        /* Style des cellules de données */
+        #table-container td {
+            border: 1px solid #ddd; /* Bordure de la cellule */
+            padding: 12px; /* Espacement interne */
+        }
+
+        /* Style de survol de la ligne */
+        #table-container tr:hover {
+            background-color: #f9f9f9; /* Couleur de fond au survol */
+        }
+
+        /* Style for the date table */
+        #date-table-container {
+            position: fixed;
+            top: 300px;
+            right: 20px;
+            width: 20%;
+            z-index: 1000; /* Ensure the table stays above other content */
+        }
+
+        #date-table-container table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #ddd;
+            font-family: Arial, sans-serif;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #date-table-container th {
+            background-color: #f2f2f2;
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center; /* Center align the header */
+            font-weight: bold;
+        }
+
+        #date-table-container td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center; /* Center align the date */
+        }
+
+        #date-table-container td[contenteditable="true"]:focus {
+            outline: none; /* Remove the default outline when the cell is focused */
+        }
+    </style>
+</head>
+<body>
+
+<h1>Graphiques et Statistiques</h1>
+
+<!-- Graphique 1 -->
+<img src="data:image/png;base64,{{ graph1 }}" alt="Graphique 1">
+
+<!-- Graphique 2 -->
+<img src="data:image/png;base64,{{ graph2 }}" alt="Graphique 2">
+
+<!-- Graphique 3 -->
+<img src="data:image/png;base64,{{ graph3 }}" alt="Graphique 3">
+
+<div id="table-container">
+    <!-- Statistics -->
+    <table>
+        <tr>
+            <th>Statistique</th>
+            <th>Valeur</th>
+        </tr>
+        <tr>
+            <td>Nombre de pièces bonnes</td>
+            <td>{{ nb_pieces_bonnes_global }}</td>
+        </tr>
+        <tr>
+            <td>Nombre de pièces mauvaises</td>
+            <td>{{ nb_pieces_mauvaises_global }}</td>
+        </tr>
+        <tr>
+            <td>Total de pièces</td>
+            <td>{{ nb_pieces_total_global }}</td>
+        </tr>
+    </table>
+</div>
+
+<!-- Date Table -->
+<div id="date-table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td contenteditable="true"><input type="date" name="selected_date"></td>
+                <td><button type="submit">Generate</button></td>
+            </tr>
+        <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var generateButton = document.querySelector("#date-table-container button[type='submit']");
+        generateButton.addEventListener("click", function() {
+            // Récupérer la date saisie par l'utilisateur
+            var selectedDate = document.querySelector("#date-table-container input[name='selected_date']").value;
+
+            // Soumettre la date via AJAX
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "{% url 'detail_testeur' testeur.id %}", true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    // Mettre à jour les graphiques avec les nouvelles données
+                    var responseData = JSON.parse(xhr.responseText);
+                    document.querySelector("img[alt='Graphique 1']").src = "data:image/png;base64," + responseData.graph1;
+                    document.querySelector("img[alt='Graphique 2']").src = "data:image/png;base64," + responseData.graph2;
+                    document.querySelector("img[alt='Graphique 3']").src = "data:image/png;base64," + responseData.graph3;
+
+                    // Mettre à jour les statistiques globales
+                    document.querySelector("#table-container td:nth-of-type(1)").textContent = responseData.nb_pieces_bonnes_global;
+                    document.querySelector("#table-container td:nth-of-type(2)").textContent = responseData.nb_pieces_mauvaises_global;
+                    document.querySelector("#table-container td:nth-of-type(3)").textContent = responseData.nb_pieces_total_global;
+                }
+            };
+            xhr.send("selected_date=" + encodeURIComponent(selectedDate) + "&csrfmiddlewaretoken={{ csrf_token }}");
+        });
+    });
+</script>
+
+        </tbody>
+    </table>
+</div>"

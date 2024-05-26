@@ -1,0 +1,113 @@
+{% extends "APP/base.html" %} 
+
+
+{% block users %}
+active
+{% endblock %}
+
+{% block content %}
+{% if request.user.is_admin %}
+<div class="col-xl-12">
+  <div class="card">
+    <div class="card-header">
+      <h5>Utilisateurs en attente</h5>
+    </div>
+    <div class="card-block table-border-style">
+      <div class="table-responsive">
+        
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Prenom</th>
+              <th>Email</th>
+              {% comment %} <th>Rôle</th> {% endcomment %}
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in pusers %}
+            <tr>
+              <td>{{ user.nom }}</td>
+              <td>{{ user.prenom }}</td>
+              <td>{{ user.email }}</td>
+              {% comment %} <td>{{ user.user_type }}</td> {% endcomment %}
+              <td>
+                <a
+                  href="/approve/{{ user.id }}/"
+                  type="button"
+                  class="label theme-bg text-white f-12"
+                  title=""
+                  data-toggle="tooltip"
+                  >Approuver</a
+                >
+                <a
+                  href="/deny/{{ user.id }}/"
+                  type="button"
+                  class="label theme-bg2 text-white f-12"
+                  title=""
+                  data-toggle="tooltip"
+                  >Refuser</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+<div class="col-xl-12">
+  <div class="card">
+    <div class="card-header">
+      <h5>Tous les utilisateurs actifs</h5>
+    </div>
+    <div class="card-block table-border-style">
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Prenom</th>
+              <th>Email</th>
+              <th>Rôle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ user.nom }}</td>
+              <td>{{ user.prenom }}</td>
+              <td>{{ user.email }}</td>
+              <td>{% if user.is_admin %} Administrateur {% endif %}</td>
+              {% comment %} <td>
+                {% if user.is_admin == False %}
+                <a
+                  href="/account-modify/{{ user.id }}/"
+                  type="button"
+                  class="label theme-bg text-white f-12"
+                  title=""
+                  data-toggle="tooltip"
+                  >Modifier</a
+                >
+                <a
+                href="/account-delete/{{ user.id }}/"
+                type="button"
+                class="label theme-bg2 text-white f-12"
+                title=""
+                data-toggle="tooltip"
+                >Supprimer ce compte</a>
+                {% endif %}
+              </td> {% endcomment %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock content %}

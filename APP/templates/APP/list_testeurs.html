@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.css">
+    <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.js"></script>
+    <meta charset="UTF-8">
+    <title>Testeur List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+        }
+        .edit-icon, .delete-icon {
+            color: #007bff;
+            cursor: pointer;
+        }
+        td:not(:last-child) {
+            border-right: 1px solid #ddd;
+        }
+    </style>
+
+</head>
+<body>
+    <h1>Testeur List</h1>
+    <table id="testeurTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Ligne</th>
+                <th>Host</th>
+                <th>Password</th>
+                <th>Chemin</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for testeur in testeurs %}
+            <tr>
+                <td>{{ testeur.id }}</td>
+                <td>{{ testeur.name }}</td>
+                <td>{{ testeur.username }}</td>
+                <td>{{ testeur.ligne }}</td>
+                <td>{{ testeur.host }}</td>
+                <td>{{ testeur.password }}</td>
+                <td>{{ testeur.chemin }}</td>
+                <td class="actions">
+                    <span class="edit-icon" onclick="editTesteur({{ testeur.id }})">Edit</span>
+                    <span class="delete-icon" onclick="deleteTesteur({{ testeur.id }})">Delete</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- DataTables JavaScript -->
+
+
+
+     <script>
+        $(document).ready(function () {
+            $('#testeurTable').DataTable();
+        });
+
+
+    function deleteTesteur(testeurId) {
+        if (confirm('Are you sure you want to delete this testeur?')) {
+            // Send an AJAX request to delete the testeur
+            fetch(`/delete_testeur/${testeurId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Reload the page or update the testeur list
+                    window.location.reload();
+                } else {
+                    // Handle error
+                    console.error('Failed to delete testeur');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    }
+
+    function editTesteur(testeurId) {
+        // Redirect to the edit testeur page
+        window.location.href = `/edit_testeur/${testeurId}/`;
+    }
+
+    </script>
+</body>
+</html>

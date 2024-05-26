@@ -1,0 +1,86 @@
+
+{% extends "APP/base.html" %} 
+
+
+{% block testeurs %}
+active
+{% endblock %}
+
+{% block content %}
+
+<div class="col-xl-12">
+  <div class="card">
+    <div class="card-header">
+      <h5>Ajouter un testeur</h5>
+    </div>
+    <div class="card-block table-border-style">
+      <div class="table-responsive">
+        <form action="../inserttesteur/" method="post">
+            {% csrf_token %}
+            <label for="name"><i class="fas fa-user"></i> Nom du testeur:</label>
+            <input type="text" id="name" name="name" class="form-control" required><br><br>
+            <label for="username"><i class="fas fa-user"></i> Nom d'utlisateur:</label>
+            <input type="text" id="username" name="username" class="form-control" required><br><br>
+            <label for="host"><i class="fas fa-server"></i> Hostname:</label>
+            <input type="text" id="host" name="host" class="form-control" required><br><br>
+            <label for="ligne"><i class="fas fa-user"></i> Ligne: </label>
+            <input type="text" id="ligne" name="ligne" class="form-control" required><br><br>
+            <label for="password"><i class="fas fa-lock"></i> Mot de passe:</label>
+            <input type="password" id="password" name="password" class="form-control" required><br><br>
+            <label for="chemin"><i class="fas fa-folder-open"></i> Chemin d'accès:</label>
+            <input type="text" id="chemin" name="chemin" class="form-control" required><br><br>
+            <input type="submit" value="Ajouter" class="btn btn-primary shadow-2 mb-4">
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock content %}
+
+{% block scripts %}
+
+<script>
+    $(document).ready(function () {
+        $('#testeurTable').DataTable();
+    });
+
+
+function deleteTesteur(testeurId) {
+    if (confirm('Are you sure you want to delete this testeur?')) {
+        // Send an AJAX request to delete the testeur
+        fetch(`/delete_testeur/${testeurId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                // Reload the page or update the testeur list
+                window.location.reload();
+            } else {
+                // Handle error
+                console.error('Failed to delete testeur');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+}
+
+function editTesteur(testeurId) {
+    // Redirect to the edit testeur page
+    window.location.href = `/edit_testeur/${testeurId}/`;
+}
+
+</script>
+
+{% endblock scripts %}
+
+
+
+

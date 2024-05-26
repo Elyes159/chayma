@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Section S15</title>
+
+
+    <style>
+        /* Initial CSS Styles */
+        #s15 {
+            padding: 20px;
+        }
+
+        h2 {
+            color: blue;
+        }
+
+        .testeur-link {
+            display: block;
+            text-decoration: none;
+            color: navy;
+            margin-bottom: 10px;
+            border: 1px solid lightblue; /* Add border for each link */
+            padding: 5px;
+            border-radius: 5px; /* Add rounded corners */
+            transition: color 0.3s, background-color 0.3s; /* Smooth transition effect */
+        }
+
+        .testeur-link:hover {
+            color: white; /* Change text color on hover */
+            background-color: navy; /* Change background color on hover */
+        }
+    </style>
+</head>
+<body>
+    <div id="s15">
+        <h2>Section S15</h2>
+        {% for testeur_s15 in testeurs_s15 %}
+            <a class="testeur-link" href="{% url 'detailtesteur' testeur_id=testeur_s15.id %}">{{ testeur_s15.name }}</a>
+        {% endfor %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{% extends "APP/base.html" %}
+{% block home %}
+active
+{% endblock home %}
+{% block content %}
+
+{% if user.user_type == 'Recrutement'%}
+<h3>Tableau de bord Recrutement</h3>
+
+<div class="embed-responsive embed-responsive-16by9">
+    <iframe class="embed-responsive-item" src="{{recrutment_Dash}}" allowfullscreen></iframe>
+</div>
+{% elif user.user_type == 'Ressources Humaines' %}
+<h3>Tableau de bord Ressources Humaines</h3>
+
+<div class="embed-responsive embed-responsive-16by9">
+    <iframe class="embed-responsive-item" src="{{rh_Dash}}" allowfullscreen></iframe>
+</div>
+
+{% elif user.user_type == 'Administrateur' %}
+
+
+<h3>1.Tableau de bord Ressources Humaines</h3>
+<br>
+<div class="embed-responsive embed-responsive-16by9">
+    <iframe class="embed-responsive-item" src="{{rh_Dash}}" allowfullscreen></iframe>
+</div>
+<br>
+<h3>2.Tableau de bord Recrutement</h3>
+<br>
+<div class="embed-responsive embed-responsive-16by9">
+    <iframe class="embed-responsive-item" src="{{recrutment_Dash}}" allowfullscreen></iframe>
+</div>
+
+
+{% endif %}
+
+
+{% endblock content %}

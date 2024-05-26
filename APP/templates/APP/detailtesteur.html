@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Détails du Testeur</title>
+    <style>
+        /* Styles pour le conteneur du tableau */
+        #table-container {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            width: 20%;
+            z-index: 1000;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Styles pour les éléments de tableau */
+        #table-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+        }
+
+        #table-container th, #table-container td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        #table-container th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        #table-container tr:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div id="branding">
+                <h1>Détails du Testeur</h1>
+            </div>
+        </div>
+    </header>
+    <section class="content container">
+        <h2>{{ testeur.nom }}</h2>
+        <p>ID Testeur: {{ testeur.id }}</p>
+        <form method="post">
+            {% csrf_token %}
+            <label for="selected_date">Sélectionner une date:</label>
+            <input type="date" id="selected_date" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
+            <button type="submit">Charger</button>
+        </form>
+
+        {% if erreur %}
+            <p style="color: red;">{{ erreur }}</p>
+        {% endif %}
+
+        {% if graph1 and graph2 and graph3 %}
+            <div class="chart">
+                <h3>Graphique FPY sur la journée</h3>
+                <img src="data:image/png;base64,{{ graph1 }}" alt="Graphique 1">
+            </div>
+            <div class="chart">
+                <h3>Graphique FPY par Interface</h3>
+                <img src="data:image/png;base64,{{ graph2 }}" alt="Graphique 2">
+            </div>
+            <div class="chart">
+                <h3>Graphique des erreurs</h3>
+                <img src="data:image/png;base64,{{ graph3 }}" alt="Graphique 3">
+            </div>
+        {% endif %}
+
+        <div id="table-container">
+            <table>
+                <tr>
+                    <th>Statistique</th>
+                    <th>Valeur</th>
+                </tr>
+                <tr>
+                    <td>Nombre de pièces bonnes</td>
+                    <td id="nb_pieces_bonnes">{{ nb_pieces_bonnes_global }}</td>
+                </tr>
+                <tr>
+                    <td>Nombre de pièces mauvaises</td>
+                    <td id="nb_pieces_mauvaises">{{ nb_pieces_mauvaises_global }}</td>
+                </tr>
+                <tr>
+                    <td>Total de pièces</td>
+                    <td id="nb_pieces_total">{{ nb_pieces_total_global }}</td>
+                </tr>
+            </table>
+        </div>
+    </section>
+
+    <canvas id="realtime-chart"></canvas>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var ctx = document.getElementById('realtime-chart').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Données en temps réel 1', data: [], backgroundColor: 'rgba(255, 99, 132, 0.2)', borderColor: 'rgba(255, 99, 132, 1)' },
+                    { label: 'Données en temps réel 2', data: [], backgroundColor: 'rgba(75, 192, 192, 0.2)', borderColor: 'rgba(75, 192, 192, 1)' },
+                    { label: 'Données en temps réel 3', data: [], backgroundColor: 'rgba(54, 162, 235, 0.2)', borderColor: 'rgba(54, 162, 235, 1)' }
+                ]
+            },
+            options: {
+                scales: {
+                    xAxes: [{
+                        type: 'realtime',
+                        realtime: {
+                            delay: 2000,
+                            refresh: 6000, // Rafraîchissement toutes les 30 secondes
+                            ttl: undefined
+                        }
+                    }]
+                }
+            }
+        });
+
+        function updateData() {
+            // Simuler la récupération de nouvelles données
+            var newNbPiecesBonnes = Math.floor(Math.random() * 100);
+            var newNbPiecesMauvaises = Math.floor(Math.random() * 50);
+            var newNbPiecesTotal = newNbPiecesBonnes + newNbPiecesMauvaises;
+
+            // Mettre à jour le tableau
+            document.getElementById('nb_pieces_bonnes').textContent = newNbPiecesBonnes;
+            document.getElementById('nb_pieces_mauvaises').textContent = newNbPiecesMauvaises;
+            document.getElementById('nb_pieces_total').textContent = newNbPiecesTotal;
+
+            // Mettre à jour le graphique
+            var now = new Date();
+            chart.data.labels.push(now.toLocaleTimeString());
+            chart.data.datasets[0].data.push(newNbPiecesBonnes);
+            chart.data.datasets[1].data.push(newNbPiecesMauvaises);
+            chart.data.datasets[2].data.push(newNbPiecesTotal);
+
+            var maxDataPoints = 20;
+            if (chart.data.labels.length > maxDataPoints) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(function(dataset) {
+                    dataset.data.shift();
+                });
+            }
+
+            chart.update();
+        }
+
+        setInterval(updateData, 5000); // Mettre à jour toutes les 30 secondes
+    });
+    </script>
+</body>
+</html>
