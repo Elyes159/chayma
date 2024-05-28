@@ -10,7 +10,7 @@ import django
 from django.contrib import messages
 import matplotlib
 from django.urls import reverse
-from .forms import SignupForm, rootForm, TesteurForm
+from .forms import SignupForm, rootForm, TesteurForm, updateProfileForm
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
 from django.db.models import Q
@@ -631,3 +631,44 @@ def user_logout(request):
     logout(request)
     return HttpResponseRedirect('/')
 
+
+@login_required(login_url='login')
+def Userprofile(request):
+    pk = request.user.id
+    user = CustomUser.objects.get(pk=pk)
+    if request.method == 'POST':
+        form = updateProfileForm(data=request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect('/users/')
+    else:
+        form = updateProfileForm(instance=user)
+    return render(request,'APP/modify_account.html', {'form':form})
+
+@login_required(login_url='login')
+def ModifyUser(request,pk):
+    if request.user.is_admin :
+        user = CustomUser.objects.get(pk=pk)
+        if request.method == 'POST':
+            form = updateProfileForm(data=request.POST, instance=user)
+            if form.is_valid():
+                form.save()
+                return HttpResponseRedirect('/users/')
+        else:
+            form = updateProfileForm(instance=user)
+        return render(request,'APP/ModifyUser.html', {'form':form})
+    else:
+        return HttpResponseRedirect('/dashboard/')
+
+def adduser(request):
+    if request.user.is_admin :
+        if request.method == 'POST':
+            form = SignupForm(request.POST)
+            if form.is_valid():
+                form.save()
+                return redirect('/users/')
+        else:
+            form = SignupForm()
+        return render(request, 'APP/adduser.html', {'form': form})
+    else:
+        return HttpResponseRedirect('/dashboard/')

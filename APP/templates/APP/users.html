@@ -62,6 +62,14 @@ active
   <div class="card">
     <div class="card-header">
       <h5>Tous les utilisateurs actifs</h5>
+      <a
+        href="/adduser/"
+        type="button"
+        class="label theme-bg text-white f-12"
+        title=""
+        data-toggle="tooltip"
+        >Ajouter</a
+      >
     </div>
     <div class="card-block table-border-style">
       <div class="table-responsive">
@@ -72,6 +80,7 @@ active
               <th>Prenom</th>
               <th>Email</th>
               <th>Rôle</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -81,6 +90,14 @@ active
               <td>{{ user.prenom }}</td>
               <td>{{ user.email }}</td>
               <td>{% if user.is_admin %} Administrateur {% endif %}</td>
+              <td><a
+                href="/modify_user/{{ user.id }}/"
+                type="button"
+                class="label theme-bg2 text-white f-12"
+                title=""
+                data-toggle="tooltip"
+                >Modifier</a>
+            </td>
               {% comment %} <td>
                 {% if user.is_admin == False %}
                 <a

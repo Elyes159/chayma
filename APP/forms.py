@@ -16,6 +16,12 @@ class SignupForm(UserCreationForm):
         self.fields['password1'].widget.attrs.update({'class': 'form-control', 'placeholder':'Mots de passe'})
         self.fields['password2'].widget.attrs.update({'class': 'form-control', 'placeholder':'Confirmez le mot de passe'})
 
+        self.fields['email'].label = "Adresse Email"
+        self.fields['prenom'].label = "Prenom"
+        self.fields['nom'].label = "Nom"
+        self.fields['password1'].label = "Mots de passe"
+        self.fields['password2'].label = "Confirmez le mot de passe"
+
     def clean_email(self):
         email = self.cleaned_data['email']
         if CustomUser.objects.filter(email=email).exists():
@@ -57,3 +63,16 @@ class TesteurForm(forms.ModelForm):
         self.fields['password'].widget.attrs.update({'class': 'form-control', 'placeholder':'password'})
         self.fields['host'].widget.attrs.update({'class': 'form-control', 'placeholder':'host'})
         self.fields['chemin'].widget.attrs.update({'class': 'form-control', 'placeholder':'chemin'})
+
+
+class updateProfileForm(forms.ModelForm):
+    class Meta():
+        model = CustomUser
+        fields = ['prenom','nom','email']
+    def __init__(self, *args, **kwargs):
+        super(updateProfileForm, self).__init__(*args, **kwargs)
+        # Applying CSS classes to the fields
+        self.fields['email'].widget.attrs.update({'type': 'email', 'class': 'form-control', 'placeholder':'Email'})
+        self.fields['prenom'].widget.attrs.update({'class': 'form-control', 'placeholder':'Prenom'})
+        self.fields['nom'].widget.attrs.update({'class': 'form-control', 'placeholder':'Nom'})
+        self.fields['email'].label = "Adresse Email"

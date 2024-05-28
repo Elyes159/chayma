@@ -1,4 +1,3 @@
-
 {% extends "APP/base.html" %} 
 
 
@@ -6,14 +5,17 @@
 <div class="col-xl-12">
   <div class="card">
     <div class="card-header">
-      <h5>Liste des lignes</h5>
+      <h5>Mettre à jour ce profil</h5>
     </div>
     <div class="card-block table-border-style">
       <div class="table-responsive">
-            <a href="{% url 'S15' %}" class="btn btn-primary">S15</a>
-            <a href="#s25" class="btn btn-success">S25</a>
-            <a href="#esb-eso-rotatif" class="btn btn-danger">ESB/ESO Rotatif</a>
-
+        <br>
+        <form method="post">
+            {% csrf_token %} 
+            {{ form.as_p }}
+        
+            <button class="btn btn-primary shadow-2 mb-4">Enregistrer</button>
+          </form>
       </div>
     </div>
   </div>

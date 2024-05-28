@@ -31,6 +31,9 @@ urlpatterns = [
 
     path("approve/<int:pk>/", views.approuve_user, name="approuve_user"),
     path("deny/<int:pk>/", views.deny_user, name="deny_user"),
+    path("profile/", views.Userprofile, name="Userprofile"),
+    path("modify_user/<int:pk>/", views.ModifyUser, name="ModifyUser"),
+    path("adduser/", views.adduser, name="adduser"),
 
 
 ]
