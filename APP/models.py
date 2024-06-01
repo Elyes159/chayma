@@ -30,30 +30,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     objects = CustomUserManager()
 
-''' class CustomUser(AbstractUser):
-
-    is_active = models.BooleanField(default=False)
-
-    # Ajout des related_name pour éviter les conflits
-    groups = models.ManyToManyField(
-        'auth.Group',
-        related_name='custom_user_set',
-        blank=True,
-        verbose_name='groups',
-        help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.',
-    )
-
-
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        related_name='custom_user_set',
-        blank=True,
-        verbose_name='user permissions',
-        help_text='Specific permissions for this user.',
-    )
-
-    def __str__(self):
-        return self.username '''
 
 class Testeur(models.Model):
     name = models.CharField(max_length=100)

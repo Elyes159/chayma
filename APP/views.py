@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 from turtle import pd
 
 from django.core.mail import send_mail
@@ -10,6 +11,8 @@ import django
 from django.contrib import messages
 import matplotlib
 from django.urls import reverse
+from django.views.decorators.http import require_http_methods
+
 from .forms import SignupForm, rootForm, TesteurForm, updateProfileForm
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
@@ -27,52 +30,79 @@ from collections import Counter
 import io
 import base64
 import numpy as np
-
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth import get_user_model
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import CustomUserSerialzers
+from rest_framework.permissions import AllowAny
+from django.http import JsonResponse
 
 
 
 def index(request):
     return render(request, 'APP/index.html')
 
-''' def register(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password1 = request.POST.get('password1')
-        password2 = request.POST.get('password2')
 
-        if password1 != password2:
-            messages.error(request, "Votre mot de passe et la confirmation ne sont pas identiques !!")
-            return render(request, 'APP/register.html')
-        else:
-            # Créez un nouvel utilisateur, mais ne l'activez pas immédiatement
-            users = CustomUser.objects.create_user(
-                username=username,
-                email=email,
-                password=password1,
-                est_approuve=False
-            )
-            users.save()
-            messages.success(request, "Votre compte a été créé avec succès. Veuillez attendre l'approbation.")
-            return redirect('login')
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
-    return render(request, 'APP/register.html') '''
-
+@csrf_exempt
 def root_signup(request):
     accounts = CustomUser.objects.count()
-    if accounts>0:
-        return HttpResponseRedirect('/')
+    if accounts > 0:
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'error': 'Account already exists'}, status=400)
+        else:
+            return HttpResponseRedirect('/')
     else:
         if request.method == 'POST':
-            form = rootForm(request.POST)
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                data = json.loads(request.body)
+                form = rootForm(data)
+            else:
+                form = rootForm(request.POST)
+
             if form.is_valid():
-                form.save()  
-                return HttpResponseRedirect('/login/')
+                form.save()
+                if request.META.get('HTTP_ACCEPT') == 'application/json':
+                    return JsonResponse({'success': 'Account created successfully'}, status=201)
+                else:
+                    return HttpResponseRedirect('/login/')
+            else:
+                if request.META.get('HTTP_ACCEPT') == 'application/json':
+                    return JsonResponse({'errors': form.errors}, status=400)
+
         else:
             form = rootForm()
+
     return render(request, 'APP/root.html', {'form': form})
 
+
+"""@api_view(['POST'])
+@permission_classes([AllowAny])
 def register(request):
+    if request.method == 'POST':
+        serializer = CustomUserSerialzers(data = request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        accounts = CustomUser.objects.count()
+        if accounts==0:
+            return redirect('/admin_register/')
+        elif request.user.is_authenticated:
+            return redirect('/dashboard/')
+        else:
+            serializer = CustomUser()
+    return Response({'error': 'methode is not allowd'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+"""
+
+
+"""def register(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
         if form.is_valid():
@@ -86,111 +116,103 @@ def register(request):
             return HttpResponseRedirect('/dashboard/')
         else:
             form = SignupForm()
-    return render(request, 'APP/register.html', {'form': form})
+    return render(request, 'APP/register.html', {'form': form})"""
 
-
+@csrf_exempt
 def loginView(request):
     if request.method == 'POST':
-        email = request.POST['email']
-        password = request.POST['password']
-        user = authenticate(request, username=email, password=password)  # Use 'email' as the username field
-        if user is not None:
-            if user.is_active:
-                login(request, user)
-                return redirect('/dashboard/')
-            else:
-                messages.error(request, "Votre compte est en cours d'approbation.")
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            import json
+            data = json.loads(request.body)
+            email = data.get('email')
+            password = data.get('password')
         else:
-            messages.error(request, "Invalid email or password")
-        return redirect('/login/')
+            email = request.POST.get('email')
+            password = request.POST.get('password')
+
+        if email and password:
+            user = authenticate(request, username=email, password=password)  # Use 'email' as the username field
+            if user is not None:
+                if user.is_active:
+                    login(request, user)
+                    if request.META.get('HTTP_ACCEPT') == 'application/json':
+                        return JsonResponse({'success': 'Logged in successfully'}, status=200)
+                    else:
+                        return redirect('/dashboard/')
+                else:
+                    if request.META.get('HTTP_ACCEPT') == 'application/json':
+                        return JsonResponse({'error': 'Votre compte est en cours d\'approbation.'}, status=403)
+                    else:
+                        messages.error(request, "Votre compte est en cours d'approbation.")
+            else:
+                if request.META.get('HTTP_ACCEPT') == 'application/json':
+                    return JsonResponse({'error': 'Invalid email or password'}, status=400)
+                else:
+                    messages.error(request, "Invalid email or password")
+            return redirect('/login/')
+        else:
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'error': 'Email and password are required'}, status=400)
+            else:
+                messages.error(request, "Email and password are required")
+            return redirect('/login/')
     else:
         # S'il s'agit d'une requête GET, afficher le formulaire de connexion
         return render(request, 'APP/login.html')
+"""@api_view(['POST'])
+@permission_classes([AllowAny])
+def loginView(request):
+    if request.method == 'POST':
+        email = request.data.get('email')
+        password = request.data.get('password')
 
+        user = authenticate(request, username=email, password=password)
+        if user:
+            login(request, user)
+            return JsonResponse({'message': 'Connexion réussie'})
+        else:
+            return JsonResponse({'error': 'Email ou mot de passe invalide'}, status=400)"""
+
+@csrf_exempt
 @login_required(login_url='login')
-def approuve_user(request,pk):
+def approuve_user(request, pk):
     if request.user.is_admin:
         user = CustomUser.objects.filter(pk=pk).update(is_active=True)
-        return HttpResponseRedirect('/users/')
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'success': 'User approved successfully'}, status=200)
+        else:
+            return HttpResponseRedirect('/users/')
     else:
-        return HttpResponseRedirect('/dashboard/')
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        else:
+            return HttpResponseRedirect('/dashboard/')
+@csrf_exempt
+@login_required(login_url='login')
+def deny_user(request, pk):
+    if request.user.is_admin:
+        try:
+            theuser = CustomUser.objects.get(pk=pk)
+            theuser.delete()
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'success': 'User deleted successfully'}, status=200)
+            else:
+                return HttpResponseRedirect('/users/')
+        except CustomUser.DoesNotExist:
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'error': 'User not found'}, status=404)
+            else:
+                return HttpResponseRedirect('/users/')
+    else:
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        else:
+            return HttpResponseRedirect('/dashboard/')
+
+
+
 
 @login_required(login_url='login')
-def deny_user(request,pk):
-    if request.user.is_admin:
-        theuser = CustomUser.objects.get(pk=pk)
-        user = CustomUser.objects.filter(pk=pk).delete()
-        return HttpResponseRedirect('/users/')
-    else:
-        return HttpResponseRedirect('/dashboard/')
-        
-"""def login_view(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
-        if User is not None:
-            login(request, user)
-            return redirect('/dashboard')  # Correction: Suppression de la virgule en trop
-        else:
-            # L'authentification a échoué, renvoyer un message d'erreur
-            return render(request, 'APP/login.html', {'error_message': 'Authentication failed. Please try again.'})
-    else:
-        # S'il s'agit d'une requête GET, afficher le formulaire de connexion
-        return render(request, 'APP/login.html')
-"""
-
-
-def forget_password(request):
-    if request.method == 'POST':
-        email = request.POST.get('email')
-
-        # Vérifier si l'utilisateur avec cette adresse e-mail existe
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return HttpResponse("Aucun utilisateur avec cette adresse e-mail")
-
-        # Générer le lien de réinitialisation du mot de passe
-        reset_link = request.build_absolute_uri(reverse('password_reset_confirm'))
-
-        # Envoyer l'e-mail de réinitialisation de mot de passe
-        subject = 'Réinitialisation de mot de passe'
-        message = f"Pour réinitialiser votre mot de passe, veuillez cliquer sur le lien suivant: {reset_link}"
-        send_mail(subject, message, 'from@example.com', [email])
-
-        return HttpResponse(
-            "Un e-mail de réinitialisation de mot de passe a été envoyé. Veuillez vérifier votre boîte de réception.")
-
-    return render(request, 'APP/forgetpassword.html')
-
-def grant_admin_access(request, user_id):
-    user = get_object_or_404(CustomUser, pk=user_id)
-    user.is_superuser = True
-    user.save()
-    return redirect('listusers')
-
-def remove_admin_access(request, user_id):
-    user = get_object_or_404(CustomUser, pk=user_id)
-    user.is_superuser = False
-    user.save()
-    return redirect('listusers')
-
-def HomePage(request):
-    # Récupérer l'utilisateur connecté
-    user = request.user
-
-    # Récupérer la liste des utilisateurs
-    users = CustomUser.objects.all()
-
-    # Vérifier si l'utilisateur est administrateur
-    if user.is_superuser:
-        # Si l'utilisateur est administrateur, redirigez-le vers la page d'administration
-        return render(request, 'APP/admin_home.html', {'users': users})
-    else:
-        # Si l'utilisateur n'est pas administrateur, redirigez-le vers la page utilisateur
-        return render(request, 'APP/user_home.html', {'users': users})
-
 def inserttesteur(request):
     if request.user.is_admin:
         if request.method == 'POST':
@@ -200,62 +222,62 @@ def inserttesteur(request):
             host = request.POST.get('host')
             password = request.POST.get('password')
             chemin = request.POST.get('chemin')
-            # Create a new CustomUser instance and save it
-            testeur = Testeur(name=name,username=username, ligne=ligne, host=host,password=password,chemin=chemin)
+            # Créer une nouvelle instance de Testeur et l'enregistrer
+            testeur = Testeur(name=name, username=username, ligne=ligne, host=host, password=password, chemin=chemin)
             testeur.save()
-            return HttpResponseRedirect('/list_testeurs/')
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'success': 'Testeur inserted successfully'}, status=201)
+            else:
+                return HttpResponseRedirect('/list_testeurs/')
 
         return render(request, 'APP/inserttesteur.html', {})
     else:
-        return HttpResponseRedirect('/dashboard/')
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        else:
+            return HttpResponseRedirect('/dashboard/')
 
 
-def insertuser(request):
-    if request.method == 'POST':
-        name = request.POST.get('username')
-        email = request.POST.get('email')
-        pass1 = request.POST.get('password')
-        # Create a new CustomUser instance and save it
-        user = User(username=name, email=email, password=pass1)
-        user.save()
-        return render(request, 'APP/index.html', {})
-    else:
-        # Handle GET requests appropriately, maybe redirect to another page
-        pass
 
+
+@login_required(login_url='login')
 def list_testeurs(request):
     if request.user.is_admin:
         testeurs = Testeur.objects.all()
-        return render(request, 'APP/testeurs.html', {'testeurs': testeurs})
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            testeurs_data = [{'name': testeur.name, 'username': testeur.username, 'ligne': testeur.ligne, 'host': testeur.host, 'chemin': testeur.chemin} for testeur in testeurs]
+            return JsonResponse({'testeurs': testeurs_data})
+        else:
+            return render(request, 'APP/testeurs.html', {'testeurs': testeurs})
     else:
-        return HttpResponseRedirect('/dashboard/')
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        else:
+            return HttpResponseRedirect('/dashboard/')
 
-
-''' def edit_testeur(request, testeur_id):
-    testeur = get_object_or_404(Testeur, id=testeur_id)
-    if request.method == 'POST':
-        testeur.name = request.POST.get('name')
-        testeur.ligne = request.POST.get('ligne')
-        testeur.password = request.POST.get('password')
-        testeur.host = request.POST.get('host')
-        testeur.chemin = request.POST.get('chemin')
-        testeur.save()
-        return HttpResponseRedirect('/list_testeurs/')
-    else:
-        return render(request, 'edit_testeur.html', {'testeur': testeur}) '''
-
+@csrf_exempt
+@login_required(login_url='login')
 def edit_testeur(request, pk):
     testeur = get_object_or_404(Testeur, pk=pk)
-    if request.method == "POST":
-        form = TesteurForm(request.POST, instance=testeur)
-        if form.is_valid():
-            form.save()
-            return HttpResponseRedirect('/list_testeurs/')  # Redirect to a detail view or any other view
+    if request.user.is_admin:
+        if request.method == "POST":
+            form = TesteurForm(request.POST, instance=testeur)
+            if form.is_valid():
+                form.save()
+                if request.META.get('HTTP_ACCEPT') == 'application/json':
+                    return JsonResponse({'success': 'Testeur updated successfully'}, status=200)
+                else:
+                    return HttpResponseRedirect('/list_testeurs/')
+        else:
+            form = TesteurForm(instance=testeur)
+        return render(request, 'APP/edit_testeur.html', {'form': form})
     else:
-        form = TesteurForm(instance=testeur)
-    return render(request, 'APP/edit_testeur.html', {'form': form})
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        else:
+            return HttpResponseRedirect('/dashboard/')
 
-
+User = get_user_model()
 def delete_testeur(request, testeur_id):
     try:
         testeur = Testeur.objects.get(id=testeur_id)
@@ -264,16 +286,18 @@ def delete_testeur(request, testeur_id):
     except User.DoesNotExist:
         return JsonResponse({'error': 'User not found'}, status=404)
 
-def save_testeur_changes(request, testeur_id):
-    if request.method == 'POST':
-            testeur = get_object_or_404(Testeur, id=testeur_id)
-            testeur.name = request.POST.get('name')
-            testeur.ligne = request.POST.get('ligne')
-            testeur.host = request.POST.get('host')
-            testeur.password = request.POST.get('password')
-            testeur.chemin = request.POST.get('chemin')
-            testeur.save()
-            return HttpResponseRedirect('/')
+def adduser(request):
+    if request.user.is_admin :
+        if request.method == 'POST':
+            form = SignupForm(request.POST)
+            if form.is_valid():
+                form.save()
+                return redirect('/users/')
+        else:
+            form = SignupForm()
+        return render(request, 'APP/adduser.html', {'form': form})
+    else:
+        return HttpResponseRedirect('/dashboard/')
 
 @login_required(login_url='login')
 def users(request):
@@ -284,82 +308,80 @@ def users(request):
     else:
         return HttpResponseRedirect('/dashboard/')
 
+@login_required(login_url='login')
+def ModifyUser(request,pk):
+    if request.user.is_admin :
+        user = CustomUser.objects.get(pk=pk)
+        if request.method == 'POST':
+            form = updateProfileForm(data=request.POST, instance=user)
+            if form.is_valid():
+                form.save()
+                return HttpResponseRedirect('/users/')
+        else:
+            form = updateProfileForm(instance=user)
+        return render(request,'APP/ModifyUser.html', {'form':form})
+    else:
+        return HttpResponseRedirect('/dashboard/')
 
-def listusers(request):
-    users = CustomUser.objects.all()  # Retrieve all users from the database
-    return render(request, 'APP/listusers.html', {'users': users})
+User = get_user_model()
 
 def delete_user(request, user_id):
-    try:
-        user = User.objects.get(id=user_id)
-        user.delete()
-        return JsonResponse({'message': 'User deleted successfully'}, status=204)
-    except User.DoesNotExist:
-        return JsonResponse({'error': 'User not found'}, status=404)
+        try:
+            user = User.objects.get(id=user_id)
+            user.delete()
+            return JsonResponse({'message': 'User deleted successfully'}, status=204)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
 
-def edit_user(request, user_id):
-        user = get_object_or_404(User, id=user_id)
-        # Render the edit user page with the user data
-        return render(request, 'APP/edit_user.html', {'user': user})
 
-def save_user_changes(request, user_id):
-    if request.method == 'POST':
-        user = get_object_or_404(User, id=user_id)
-        user.username = request.POST.get('username')
-        user.email = request.POST.get('email')
-        user.save()
-        return HttpResponseRedirect('/')
+
+
 
 
 def listeligne(request):
     # Votre logique pour récupérer et traiter la liste des lignes
-    ligne = ['S15', 'S25', 'ESB/ESO ROTATIF']
-    return render(request, 'APP/listeligne.html', {'lignes': ligne})
-
+    lignes = ['S15', 'S25', 'ESB/ESO ROTATIF']
+    if request.META.get('HTTP_ACCEPT') == 'application/json':
+        return JsonResponse({'lignes': lignes})
+    else:
+        return render(request, 'APP/listeligne.html', {'lignes': lignes})
 
 def S15(request):
     testeurs_s15 = Testeur.objects.filter(ligne='S15')
-    return render(request, 'APP/S15.html', {'testeurs_s15': testeurs_s15})
-
-
+    if request.META.get('HTTP_ACCEPT') == 'application/json':
+        # Convertir les données en format JSON si la demande est JSON
+        testeurs_data = [{'name': testeur.name, 'username': testeur.username} for testeur in testeurs_s15]
+        return JsonResponse({'testeurs_s15': testeurs_data})
+    else:
+        return render(request, 'APP/S15.html', {'testeurs_s15': testeurs_s15})
 
 def s25_list(request):
     testeurs_s25 = Testeur.objects.filter(ligne='S25')
-    return render(request, 'APP/S25.html', {'testeurs_s25': testeurs_s25})
+    if request.META.get('HTTP_ACCEPT') == 'application/json':
+        # Convertir les données en format JSON si la demande est JSON
+        testeurs_data = [{'name': testeur.name, 'username': testeur.username} for testeur in testeurs_s25]
+        return JsonResponse({'testeurs_s25': testeurs_data})
+    else:
+        return render(request, 'APP/S25.html', {'testeurs_s25': testeurs_s25})
 
 def esb_eso_rotatif_list(request):
     testeurs_esb_eso_rotatif = Testeur.objects.filter(ligne='ESB/ESO Rotatif')
-    return render(request, 'APP/esb_eso_rotatif_list.html', {'testeurs_esb_eso_rotatif': testeurs_esb_eso_rotatif})
+    if request.META.get('HTTP_ACCEPT') == 'application/json':
+        # Convertir les données en format JSON si la demande est JSON
+        testeurs_data = [{'name': testeur.name, 'username': testeur.username} for testeur in testeurs_esb_eso_rotatif]
+        return JsonResponse({'testeurs_esb_eso_rotatif': testeurs_data})
+    else:
+        return render(request, 'APP/esb_eso_rotatif_list.html', {'testeurs_esb_eso_rotatif': testeurs_esb_eso_rotatif})
+
 
 def dashboard(request):
     return render (request,'APP/home.html')
 
 
 
-def add_testeur(request):
-    if request.method == 'POST':
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        # Create and save the Testeur object
-        testeur = Testeur(name=name, email=email)
-        testeur.save()
-        return redirect('list_testeurs')
-    return render(request, 'APP/add_testeur.html')
 
-''' def edit_testeur(request, testeur_id):
-    testeur = Testeur.objects.get(id=testeur_id)
-    if request.method == 'POST':
-        # Update testeur with the new data
-        testeur.name = request.POST.get('name')
-        testeur.email = request.POST.get('email')
-        testeur.save()
-        return redirect('list_testeurs')  # Redirect to the list of testeurs after editing
-    return render(request, 'APP/edit_testeur.html', {'testeur': testeur}) '''
 
-def delete_testeur(request, testeur_id):
-    testeur = Testeur.objects.get(id=testeur_id)
-    testeur.delete()
-    return redirect('list_testeurs')
+
 def extraire_donnees_via_ftp(testeur, selected_date):
     try:
         # Connexion FTP
@@ -547,46 +569,11 @@ def extraire_donnees_via_ftp(testeur, selected_date):
             ftp.quit()
 
 
-"""def detailtesteur(request, testeur_id):
-    testeur = Testeur.objects.get(pk=testeur_id)  # Récupérer le testeur en fonction de l'ID
-    # Ajoutez ici votre logique de traitement des données liées au testeur
-    return render(request, 'APP/detailtesteur.html', {'testeur': testeur})
-"""
-
-
-from django.utils import timezone
-"""def detailtesteur(request, testeur_id):
-    testeur = get_object_or_404(Testeur, pk=testeur_id)
-    selected_date = None
-    current_date = timezone.now().date()
-
-    if request.method == 'POST':
-        selected_date_str = request.POST.get('selected_date')
-        if selected_date_str:
-            selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d')
-
-        graph1, graph2, graph3, nb_pieces_bonnes_global, nb_pieces_mauvaises_global, nb_pieces_total_global, fpy_global = extraire_donnees_via_ftp(testeur, selected_date)
-
-        if graph1 is None or graph2 is None or graph3 is None:
-            erreur = "Une erreur s'est produite lors du traitement des données."
-            return render(request, 'APP/detailtesteur.html', {'testeur': testeur, 'erreur': erreur, 'current_date': current_date})
-        else:
-            return render(request, 'APP/detailtesteur.html',
-                          {'testeur': testeur, 'graph1_data': graph1, 'graph2_data': graph2, 'graph3_data': graph3,
-                           'nb_pieces_bonnes_global': nb_pieces_bonnes_global,
-                           'nb_pieces_mauvaises_global': nb_pieces_mauvaises_global,
-                           'nb_pieces_total_global': nb_pieces_total_global,
-                           'fpy_global': fpy_global,
-                           'selected_date': selected_date,
-                           'current_date': current_date})
-
-    return render(request, 'APP/detailtesteur.html', {'testeur': testeur, 'selected_date': selected_date, 'current_date': current_date})
-"""
-
 from django.shortcuts import render
 from .models import Testeur, IndicateurPerformance, InterfaceStatistique
 
 
+from django.utils import timezone
 
 def detailtesteur(request, testeur_id):
     testeur = Testeur.objects.get(pk=testeur_id)
@@ -601,7 +588,21 @@ def detailtesteur(request, testeur_id):
         graph1, graph2, graph3, nb_pieces_bonnes_global, nb_pieces_mauvaises_global, nb_pieces_total_global, fpy_global = extraire_donnees_via_ftp(
             testeur, selected_date)
 
-        if graph1 and graph2 and graph3:
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            data = {
+                'testeur': testeur.id,
+                'graph1': graph1,
+                'graph2': graph2,
+                'graph3': graph3,
+                'nb_pieces_bonnes_global': nb_pieces_bonnes_global,
+                'nb_pieces_mauvaises_global': nb_pieces_mauvaises_global,
+                'nb_pieces_total_global': nb_pieces_total_global,
+                'fpy_global': fpy_global,
+                'selected_date': selected_date_str,
+                'current_date': current_date.strftime('%Y-%m-%d')
+            }
+            return JsonResponse(data)
+        else:
             return render(request, 'APP/detailtesteur.html', {
                 'testeur': testeur,
                 'graph1': graph1,
@@ -620,19 +621,16 @@ def detailtesteur(request, testeur_id):
         'selected_date': selected_date,
         'current_date': current_date
     })
-def admin_home(request):
-    return render(request,'APP/admin_home.html')
-
-def user_home(request):
-    return render(request,'APP/user_home.html')
 
 @login_required(login_url='login')
 def user_logout(request):
     logout(request)
-    return HttpResponseRedirect('/')
+    if request.META.get('HTTP_ACCEPT') == 'application/json':
+        return JsonResponse({'message': 'User logged out successfully'}, status=200)
+    else:
+        return HttpResponseRedirect('/')
 
-
-@login_required(login_url='login')
+@csrf_exempt
 def Userprofile(request):
     pk = request.user.id
     user = CustomUser.objects.get(pk=pk)
@@ -640,35 +638,13 @@ def Userprofile(request):
         form = updateProfileForm(data=request.POST, instance=user)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect('/users/')
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'message': 'Profile updated successfully'}, status=200)
+            else:
+                return HttpResponseRedirect('/users/')
     else:
         form = updateProfileForm(instance=user)
-    return render(request,'APP/modify_account.html', {'form':form})
+    return render(request, 'APP/modify_account.html', {'form': form})
 
-@login_required(login_url='login')
-def ModifyUser(request,pk):
-    if request.user.is_admin :
-        user = CustomUser.objects.get(pk=pk)
-        if request.method == 'POST':
-            form = updateProfileForm(data=request.POST, instance=user)
-            if form.is_valid():
-                form.save()
-                return HttpResponseRedirect('/users/')
-        else:
-            form = updateProfileForm(instance=user)
-        return render(request,'APP/ModifyUser.html', {'form':form})
-    else:
-        return HttpResponseRedirect('/dashboard/')
 
-def adduser(request):
-    if request.user.is_admin :
-        if request.method == 'POST':
-            form = SignupForm(request.POST)
-            if form.is_valid():
-                form.save()
-                return redirect('/users/')
-        else:
-            form = SignupForm()
-        return render(request, 'APP/adduser.html', {'form': form})
-    else:
-        return HttpResponseRedirect('/dashboard/')
+
