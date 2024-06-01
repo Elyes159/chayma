@@ -647,4 +647,27 @@ def Userprofile(request):
     return render(request, 'APP/modify_account.html', {'form': form})
 
 
+def register(request):
+    if request.method == 'POST':
+        form = SignupForm(request.POST)
+        if form.is_valid():
+            form.save()
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'message': 'User registered successfully'}, status=201)
+            else:
+                return redirect('/login/')
+    else:
+        accounts = CustomUser.objects.count()
+        if accounts == 0:
+            return HttpResponseRedirect('/admin_register/')
+        elif request.user.is_authenticated:
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'error': 'Already logged in'}, status=400)
+            else:
+                return HttpResponseRedirect('/dashboard/')
+        else:
+            form = SignupForm()
+    return render(request, 'APP/register.html', {'form': form})
+
+
 
