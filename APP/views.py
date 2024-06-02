@@ -62,13 +62,15 @@ def root_signup(request):
             if request.META.get('HTTP_ACCEPT') == 'application/json':
                 data = json.loads(request.body)
                 form = rootForm(data)
+                
             else:
                 form = rootForm(request.POST)
 
             if form.is_valid():
+                print("form valid")
                 form.save()
                 if request.META.get('HTTP_ACCEPT') == 'application/json':
-                    return JsonResponse({'success': 'Account created successfully'}, status=201)
+                    return JsonResponse({'success': 'Account created successfully'}, status=200)
                 else:
                     return HttpResponseRedirect('/login/')
             else:
@@ -647,16 +649,37 @@ def Userprofile(request):
     return render(request, 'APP/modify_account.html', {'form': form})
 
 
+
+
+@csrf_exempt
 def register(request):
+    print("Request method:", request.method)
+    print("Request headers:", request.META)
+    
     if request.method == 'POST':
-        form = SignupForm(request.POST)
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            print("JSON request received")
+            form = SignupForm(json.loads(request.body))
+        else:
+            print("Form request received")
+            form = SignupForm(request.POST)
+        
+        print("Form valid:", form.is_valid())
+        
         if form.is_valid():
             form.save()
             if request.META.get('HTTP_ACCEPT') == 'application/json':
-                return JsonResponse({'message': 'User registered successfully'}, status=201)
+                print("Returning 204 No Content")
+                return JsonResponse({'message': 'User registered successfully'}, status=204)
             else:
+                print("Redirecting to /login/")
                 return redirect('/login/')
+        else:
+            print("Form errors:", form.errors)
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'errors': form.errors}, status=400)
     else:
+        print("GET request received")
         accounts = CustomUser.objects.count()
         if accounts == 0:
             return HttpResponseRedirect('/admin_register/')
@@ -667,6 +690,7 @@ def register(request):
                 return HttpResponseRedirect('/dashboard/')
         else:
             form = SignupForm()
+    
     return render(request, 'APP/register.html', {'form': form})
 
 
