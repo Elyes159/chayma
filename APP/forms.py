@@ -53,7 +53,7 @@ class rootForm(UserCreationForm):
 class TesteurForm(forms.ModelForm):
     class Meta:
         model = Testeur
-        fields = ['name', 'ligne', 'password', 'host', 'chemin']
+        fields = ['name', 'ligne', 'password', 'host', 'chemin','username']
     
     def __init__(self, *args, **kwargs):
         super(TesteurForm, self).__init__(*args, **kwargs)

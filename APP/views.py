@@ -124,8 +124,11 @@ def register(request):
 def loginView(request):
     if request.method == 'POST':
         if request.META.get('HTTP_ACCEPT') == 'application/json':
-            import json
-            data = json.loads(request.body)
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            
             email = data.get('email')
             password = data.get('password')
         else:
@@ -133,7 +136,7 @@ def loginView(request):
             password = request.POST.get('password')
 
         if email and password:
-            user = authenticate(request, username=email, password=password)  # Use 'email' as the username field
+            user = authenticate(request, username=email, password=password)
             if user is not None:
                 if user.is_active:
                     login(request, user)
@@ -142,24 +145,26 @@ def loginView(request):
                     else:
                         return redirect('/dashboard/')
                 else:
+                    error_msg = 'Votre compte est en cours d\'approbation.'
                     if request.META.get('HTTP_ACCEPT') == 'application/json':
-                        return JsonResponse({'error': 'Votre compte est en cours d\'approbation.'}, status=403)
+                        return JsonResponse({'error': error_msg}, status=403)
                     else:
-                        messages.error(request, "Votre compte est en cours d'approbation.")
+                        messages.error(request, error_msg)
             else:
+                error_msg = 'Invalid email or password'
                 if request.META.get('HTTP_ACCEPT') == 'application/json':
-                    return JsonResponse({'error': 'Invalid email or password'}, status=400)
+                    return JsonResponse({'error': error_msg}, status=400)
                 else:
-                    messages.error(request, "Invalid email or password")
+                    messages.error(request, error_msg)
             return redirect('/login/')
         else:
+            error_msg = 'Email and password are required'
             if request.META.get('HTTP_ACCEPT') == 'application/json':
-                return JsonResponse({'error': 'Email and password are required'}, status=400)
+                return JsonResponse({'error': error_msg}, status=400)
             else:
-                messages.error(request, "Email and password are required")
+                messages.error(request, error_msg)
             return redirect('/login/')
     else:
-        # S'il s'agit d'une requête GET, afficher le formulaire de connexion
         return render(request, 'APP/login.html')
 """@api_view(['POST'])
 @permission_classes([AllowAny])
@@ -178,13 +183,19 @@ def loginView(request):
 @csrf_exempt
 @login_required(login_url='login')
 def approuve_user(request, pk):
+    print("Request method:", request.method)
+    print("User is admin:", request.user.is_admin)
+    
     if request.user.is_admin:
-        user = CustomUser.objects.filter(pk=pk).update(is_active=True)
+        user = get_object_or_404(CustomUser, pk=pk)
+        user.is_active = True
+        user.save()
         if request.META.get('HTTP_ACCEPT') == 'application/json':
-            return JsonResponse({'success': 'User approved successfully'}, status=200)
+            return JsonResponse({'success': 'User approved successfully'}, status=204)
         else:
             return HttpResponseRedirect('/users/')
     else:
+        print("Unauthorized access attempt")
         if request.META.get('HTTP_ACCEPT') == 'application/json':
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         else:
@@ -224,7 +235,6 @@ def inserttesteur(request):
             host = request.POST.get('host')
             password = request.POST.get('password')
             chemin = request.POST.get('chemin')
-            # Créer une nouvelle instance de Testeur et l'enregistrer
             testeur = Testeur(name=name, username=username, ligne=ligne, host=host, password=password, chemin=chemin)
             testeur.save()
             if request.META.get('HTTP_ACCEPT') == 'application/json':
@@ -238,6 +248,32 @@ def inserttesteur(request):
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         else:
             return HttpResponseRedirect('/dashboard/')
+@csrf_exempt     
+def inserttesteur_app(request,email):
+    user = CustomUser.objects.filter(email = email).first()
+    if not user.is_admin:
+        if request.method == 'POST' :
+            try:
+                data = json.loads(request.body)
+                name = data.get('name')
+                username = data.get('username')
+                ligne = data.get('ligne')
+                host = data.get('host')
+                password = data.get('password')
+                chemin = data.get('chemin')
+
+                if not all([name, username, ligne, host, password, chemin]):
+                    return JsonResponse({'error': 'All fields are required'}, status=400)
+
+                testeur = Testeur(name=name, username=username, ligne=ligne, host=host, password=password, chemin=chemin)
+                testeur.save()
+                return JsonResponse({'success': 'Testeur inserted successfully'}, status=201)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        else:
+            return JsonResponse({'error': 'Invalid request'}, status=400)
+    else:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
 
 
 
@@ -256,6 +292,28 @@ def list_testeurs(request):
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         else:
             return HttpResponseRedirect('/dashboard/')
+@csrf_exempt
+def list_testeurs_app(request,email):
+    user = CustomUser.objects.filter(email = email).first()
+    if not user.is_admin:
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            testeurs = Testeur.objects.all()
+            testeurs_data = [
+                {
+                    'id':testeur.id,
+                    'name': testeur.name,
+                    'username': testeur.username,
+                    'ligne': testeur.ligne,
+                    'host': testeur.host,
+                    'chemin': testeur.chemin,
+                    'password':testeur.password
+                } for testeur in testeurs
+            ]
+            return JsonResponse({'testeurs': testeurs_data})
+        else:
+            return JsonResponse({'error': 'Accept header must be application/json'}, status=400)
+    else:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
 
 @csrf_exempt
 @login_required(login_url='login')
@@ -278,8 +336,45 @@ def edit_testeur(request, pk):
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         else:
             return HttpResponseRedirect('/dashboard/')
+@csrf_exempt
+def edit_testeur_app(request, email, pk):
+    user = CustomUser.objects.filter(email=email).first()
+    if  user.is_admin:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    try:
+        testeur = Testeur.objects.get(pk=pk)
+    except Testeur.DoesNotExist:
+        return JsonResponse({'error': 'Testeur not found'}, status=404)
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            name = data.get('name')
+            username = data.get('username')
+            ligne = data.get('ligne')
+            password = data.get('password')
+            host = data.get('host')
+            chemin = data.get('chemin')
+
+            testeur.name = name
+            testeur.username = username
+            testeur.ligne = ligne
+            testeur.password = password
+            testeur.host = host
+            testeur.chemin = chemin
+
+            testeur.save()
+            print(testeur.username)
+            return JsonResponse({'success': 'Testeur updated successfully'}, status=200)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 User = get_user_model()
+@csrf_exempt
 def delete_testeur(request, testeur_id):
     try:
         testeur = Testeur.objects.get(id=testeur_id)
@@ -300,6 +395,25 @@ def adduser(request):
         return render(request, 'APP/adduser.html', {'form': form})
     else:
         return HttpResponseRedirect('/dashboard/')
+@csrf_exempt
+def add_user_app(request, email):
+    user = CustomUser.objects.filter(email=email).first()
+    if  user.is_admin:
+        if request.method == 'POST' :
+            try:
+                data = json.loads(request.body)
+                form = SignupForm(data)
+                if form.is_valid():
+                    form.save()
+                    return JsonResponse({'success': 'User added successfully'}, status=201)
+                else:
+                    return JsonResponse({'errors': form.errors}, status=400)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        else:
+            return JsonResponse({'error': 'Invalid request'}, status=400)
+    else:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
 
 @login_required(login_url='login')
 def users(request):
@@ -309,6 +423,19 @@ def users(request):
         return render(request, 'APP/users.html', {'users': users, 'pusers': pusers})
     else:
         return HttpResponseRedirect('/dashboard/')
+@csrf_exempt  
+def get_users(request,email):
+    user = CustomUser.objects.filter(email = email).first()
+    if  not user.is_admin:
+        users = CustomUser.objects.filter(is_active=True)
+        pusers = CustomUser.objects.filter(Q(is_active=None) | Q(is_active=False))
+        users_data = [{'id': user.id, 'username': user.prenom, 'email': user.email, 'is_active': user.is_active} for user in users]
+        pusers_data = [{'id': user.id, 'username': user.prenom, 'email': user.email, 'is_active': user.is_active} for user in pusers]
+        data = {'active_users': users_data, 'inactive_users': pusers_data}
+        print(data)
+        return JsonResponse(data, safe=False)  # Safe is set to False because we are returning a list of dictionaries
+    else:
+        return JsonResponse({'error': 'Access Denied'}, status=403)
 
 @login_required(login_url='login')
 def ModifyUser(request,pk):
@@ -330,6 +457,14 @@ User = get_user_model()
 def delete_user(request, user_id):
         try:
             user = User.objects.get(id=user_id)
+            user.delete()
+            return JsonResponse({'message': 'User deleted successfully'}, status=204)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+@csrf_exempt     
+def delete_user_app(request, email):
+        try:
+            user = CustomUser.objects.get(email = email)
             user.delete()
             return JsonResponse({'message': 'User deleted successfully'}, status=204)
         except User.DoesNotExist:
@@ -379,19 +514,10 @@ def esb_eso_rotatif_list(request):
 def dashboard(request):
     return render (request,'APP/home.html')
 
-
-
-
-
-
 def extraire_donnees_via_ftp(testeur, selected_date):
     try:
-        # Connexion FTP
-
-        # Construct the file path based on the selected date
         file_path_remote = f"{testeur.chemin}/{selected_date.year}/{selected_date.month:02d}/{selected_date.day:02d}.CSV"
 
-        # Connexion FTP
         ftp = ftplib.FTP(testeur.host)
         print("Connexion FTP établie")
 
@@ -405,34 +531,25 @@ def extraire_donnees_via_ftp(testeur, selected_date):
 
         print("Connexion FTP réussie")
 
-        # Obtention du nom de fichier depuis le chemin
         file_name = os.path.basename(file_path_remote)
 
-        # Téléchargement du fichier CSV depuis le serveur FTP
         with open(file_name, 'wb') as fichier_local:
             ftp.retrbinary('RETR ' + file_path_remote, fichier_local.write)
 
-        # Lecture du fichier CSV avec pandas en spécifiant le délimiteur ';' et l'encodage UTF-8
         df = pd.read_csv(file_name, delimiter=';', encoding='utf-8')
         try:
-            # Convertir la colonne "Date" en format de date avec années complètes (%Y)
             df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='raise')  # Changement du format ici
         except ValueError:
-            # Si la conversion échoue avec le format '%d/%m/%Y', essayez avec '%d/%m/%y'
             df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%y', errors='coerce')
 
-        # Filtrer les lignes avec des valeurs de date non valides
         df = df.dropna(subset=['Date'])
 
-        # Extraire l'heure de la colonne "Heure"
         df['Heure'] = pd.to_datetime(df['Heure'], format='%H:%M:%S').dt.hour
 
-        # Data processing for graph 1 (FPY over time)
-        # Calculer le FPY par tranche de deux heures
+        
         fpy_by_two_hours = df.groupby(df['Heure'] // 2 * 2).apply(
             lambda x: (x[x['Code err'] == 0].shape[0] / len(x)) * 100)
 
-        # Ajouter le dernier FPY s'il n'y a pas exactement deux heures à la fin
         last_hour = max(df['Heure'])
         last_hour_data = df[df['Heure'] == last_hour]
         if len(last_hour_data) > 0:
@@ -631,67 +748,134 @@ def user_logout(request):
         return JsonResponse({'message': 'User logged out successfully'}, status=200)
     else:
         return HttpResponseRedirect('/')
-
 @csrf_exempt
+
 def Userprofile(request):
     pk = request.user.id
     user = CustomUser.objects.get(pk=pk)
+    
     if request.method == 'POST':
-        form = updateProfileForm(data=request.POST, instance=user)
+        if request.META.get('CONTENT_TYPE') == 'application/json':
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            
+            form = updateProfileForm(data=data, instance=user)
+        else:
+            form = updateProfileForm(data=request.POST, instance=user)
+        
         if form.is_valid():
             form.save()
-            if request.META.get('HTTP_ACCEPT') == 'application/json':
-                return JsonResponse({'message': 'Profile updated successfully'}, status=200)
+            if request.META.get('CONTENT_TYPE') == 'application/json':
+                return JsonResponse({'message': 'Profile updated successfully'}, status=201)
             else:
                 return HttpResponseRedirect('/users/')
     else:
         form = updateProfileForm(instance=user)
+    
     return render(request, 'APP/modify_account.html', {'form': form})
 
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+import json
 
-
+@csrf_exempt
+def update_user_profile(request,email):
+    if request.method == 'POST':
+        
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            
+            user = CustomUser.objects.filter(email = email).first()
+            prenom = data.get('prenom')
+            nom = data.get('nom')
+            emaill = data.get('email')
+            print(emaill,prenom,nom)
+            
+            if prenom and nom and emaill and email:
+                user.prenom = prenom
+                user.nom = nom
+                user.email = emaill
+                user.save()
+                return JsonResponse({'message': 'Profile updated successfully'}, status=200)
+            else:
+                return JsonResponse({'error': 'Missing fields'}, status=400)
+        
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    
+@csrf_exempt
+def update_user_profile_admin(request,email):
+    if request.method == 'POST':
+        
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            
+           
+            prenom = data.get('prenom')
+            nom = data.get('nom')
+            emaill = data.get('email')
+            print(emaill,prenom,nom)
+            user = CustomUser.objects.filter(email = emaill).first()
+            
+            if prenom and nom and emaill and email:
+                user.prenom = prenom
+                user.nom = nom
+                user.email = emaill
+                user.save()
+                return JsonResponse({'message': 'Profile updated successfully'}, status=200)
+            else:
+                return JsonResponse({'error': 'Missing fields'}, status=400)
+        
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 @csrf_exempt
 def register(request):
     print("Request method:", request.method)
     print("Request headers:", request.META)
-    
-    if request.method == 'POST':
-        if request.META.get('HTTP_ACCEPT') == 'application/json':
-            print("JSON request received")
-            form = SignupForm(json.loads(request.body))
-        else:
-            print("Form request received")
-            form = SignupForm(request.POST)
-        
-        print("Form valid:", form.is_valid())
-        
-        if form.is_valid():
-            form.save()
-            if request.META.get('HTTP_ACCEPT') == 'application/json':
-                print("Returning 204 No Content")
-                return JsonResponse({'message': 'User registered successfully'}, status=204)
-            else:
-                print("Redirecting to /login/")
-                return redirect('/login/')
-        else:
-            print("Form errors:", form.errors)
-            if request.META.get('HTTP_ACCEPT') == 'application/json':
-                return JsonResponse({'errors': form.errors}, status=400)
+    if request.META.get('HTTP_ACCEPT') == 'application/json':
+        print("JSON request received")
+        if not request.body:
+            print("Empty request body")
+            return JsonResponse({'error': 'Empty request body'}, status=400)
+        try:
+            body_unicode = request.body.decode('utf-8')
+            if not body_unicode:
+                raise ValueError("Empty body after decoding")
+            data = json.loads(body_unicode)
+            print("Parsed JSON data:", data)
+            form = SignupForm(data)
+        except (json.JSONDecodeError, ValueError) as e:
+            print("JSON decode error or empty body:", str(e))
+            return JsonResponse({'error': 'Invalid JSON or empty body'}, status=400)
     else:
-        print("GET request received")
-        accounts = CustomUser.objects.count()
-        if accounts == 0:
-            return HttpResponseRedirect('/admin_register/')
-        elif request.user.is_authenticated:
-            if request.META.get('HTTP_ACCEPT') == 'application/json':
-                return JsonResponse({'error': 'Already logged in'}, status=400)
-            else:
-                return HttpResponseRedirect('/dashboard/')
+        print("Form request received")
+        form = SignupForm(request.POST)
+
+    print("Form valid:", form.is_valid())
+
+    if form.is_valid():
+        form.save()
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            print("Returning 201 Created")
+            return JsonResponse({'message': 'User registered successfully'}, status=201)
         else:
-            form = SignupForm()
-    
-    return render(request, 'APP/register.html', {'form': form})
+            print("Redirecting to /login/")
+            return redirect('/login/')
+    else:
+        print("Form errors:", form.errors)
+        if request.META.get('HTTP_ACCEPT') == 'application/json':
+            return JsonResponse({'errors': form.errors}, status=400)
+        else:
+            return render(request, 'APP/register.html', {'form': form})
 
 
 
