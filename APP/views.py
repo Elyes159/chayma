@@ -200,6 +200,21 @@ def approuve_user(request, pk):
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         else:
             return HttpResponseRedirect('/dashboard/')
+        
+@csrf_exempt       
+def approuve_user_app(request, email):
+    user = CustomUser.objects.filter(email = email).first()
+    if  user.is_admin:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+    try:
+        user = get_object_or_404(CustomUser, email=email)
+        user.is_active = True
+        user.save()
+        return JsonResponse({'success': 'User approved successfully'}, status=200)
+    except (KeyError, ValueError): 
+        return JsonResponse({'error': 'Invalid data provided'}, status=400)
+        
+        
 @csrf_exempt
 @login_required(login_url='login')
 def deny_user(request, pk):
@@ -836,46 +851,50 @@ def update_user_profile_admin(request,email):
         
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
-
+        
+        
+        
 @csrf_exempt
 def register(request):
     print("Request method:", request.method)
     print("Request headers:", request.META)
-    if request.META.get('HTTP_ACCEPT') == 'application/json':
-        print("JSON request received")
-        if not request.body:
-            print("Empty request body")
-            return JsonResponse({'error': 'Empty request body'}, status=400)
-        try:
-            body_unicode = request.body.decode('utf-8')
-            if not body_unicode:
-                raise ValueError("Empty body after decoding")
-            data = json.loads(body_unicode)
-            print("Parsed JSON data:", data)
-            form = SignupForm(data)
-        except (json.JSONDecodeError, ValueError) as e:
-            print("JSON decode error or empty body:", str(e))
-            return JsonResponse({'error': 'Invalid JSON or empty body'}, status=400)
-    else:
-        print("Form request received")
-        form = SignupForm(request.POST)
-
-    print("Form valid:", form.is_valid())
-
-    if form.is_valid():
-        form.save()
+    
+    if request.method == 'POST':
         if request.META.get('HTTP_ACCEPT') == 'application/json':
-            print("Returning 201 Created")
-            return JsonResponse({'message': 'User registered successfully'}, status=201)
+            print("JSON request received")
+            form = SignupForm(json.loads(request.body))
         else:
-            print("Redirecting to /login/")
-            return redirect('/login/')
+            print("Form request received")
+            form = SignupForm(request.POST)
+        
+        print("Form valid:", form.is_valid())
+        
+        if form.is_valid():
+            form.save()
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                print("Returning 204 No Content")
+                return JsonResponse({'message': 'User registered successfully'}, status=204)
+            else:
+                print("Redirecting to /login/")
+                return redirect('/login/')
+        else:
+            print("Form errors:", form.errors)
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'errors': form.errors}, status=400)
     else:
-        print("Form errors:", form.errors)
-        if request.META.get('HTTP_ACCEPT') == 'application/json':
-            return JsonResponse({'errors': form.errors}, status=400)
+        print("GET request received")
+        accounts = CustomUser.objects.count()
+        if accounts == 0:
+            return HttpResponseRedirect('/admin_register/')
+        elif request.user.is_authenticated:
+            if request.META.get('HTTP_ACCEPT') == 'application/json':
+                return JsonResponse({'error': 'Already logged in'}, status=400)
+            else:
+                return HttpResponseRedirect('/dashboard/')
         else:
-            return render(request, 'APP/register.html', {'form': form})
+            form = SignupForm()
+    
+    return render(request, 'APP/register.html', {'form': form})
 
 
 

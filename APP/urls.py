@@ -38,6 +38,8 @@ urlpatterns = [
     path('extraire_donnees_via_ftp/',views.extraire_donnees_via_ftp,name="extraire_donnees_via_ftp"),
 
     path("approve/<int:pk>/", views.approuve_user, name="approuve_user"),
+    path("approve_app/<email>/", views.approuve_user_app, name="approuve_user_app"),
+
     path("deny/<int:pk>/", views.deny_user, name="deny_user"),
     path("profile/", views.Userprofile, name="Userprofile"),
     path("api/profile/<email>/", views.update_user_profile, name="uup"),
