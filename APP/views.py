@@ -898,3 +898,41 @@ def register(request):
 
 
 
+def get_performance_data(request):
+    indicateurs = IndicateurPerformance.objects.all()
+    interfaces = InterfaceStatistique.objects.all()
+    indicateurs_data = [
+        {
+            'id': indicateur.id,
+            'testeur': indicateur.testeur.id,
+            'fpy': indicateur.fpy,
+            'pieces_bonnes': indicateur.pieces_bonnes,
+            'pieces_total': indicateur.pieces_total,
+            'pieces_mauvaises': indicateur.pieces_mauvaises,
+            'top_defaut': indicateur.top_defaut
+        }
+        for indicateur in indicateurs
+    ]
+
+    interfaces_data = [
+        {
+            'id': interface.id,
+            'interface': interface.interface,
+            'fpy_interface': interface.fpy_interface,
+            'pieces_bonnes_interface': interface.pieces_bonnes_interface,
+            'pieces_mauvaises_interface': interface.pieces_mauvaises_interface,
+            'pieces_total_interface': interface.pieces_total_interface,
+            'top_defaut_interface': interface.top_defaut_interface
+        }
+        for interface in interfaces
+    ]
+
+    data = {
+        'indicateurs': indicateurs_data,
+        'interfaces': interfaces_data
+    }
+
+    return JsonResponse(data, safe=False)
+
+
+

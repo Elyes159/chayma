@@ -59,8 +59,10 @@ urlpatterns = [
     
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-
-
-
+    
+    
+    #5edemti
+    
+    path('performance-data/', views.get_performance_data, name='performance-data'),
 
 ]
